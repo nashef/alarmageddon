@@ -26,7 +26,36 @@ const WEBHOOK_COMMAND = {
   ],
 };
 
-const ALL_COMMANDS = [PING_COMMAND, WEBHOOK_COMMAND];
+// Alert management command
+const ALERT_COMMAND = {
+  name: 'alert',
+  description: 'Alert management commands',
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 1, 2],
+  options: [
+    {
+      name: 'list',
+      description: 'Show recent alerts',
+      type: 1, // SUB_COMMAND
+    },
+    {
+      name: 'ack',
+      description: 'Acknowledge an alert by ID',
+      type: 1, // SUB_COMMAND
+      options: [
+        {
+          name: 'id',
+          description: 'Alert ID to acknowledge',
+          type: 3, // STRING
+          required: true
+        }
+      ]
+    },
+  ],
+};
+
+const ALL_COMMANDS = [PING_COMMAND, WEBHOOK_COMMAND, ALERT_COMMAND];
 
 InstallGlobalCommands(process.env.APP_ID, ALL_COMMANDS)
   .then(commands => {

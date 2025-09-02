@@ -6,7 +6,8 @@ import {
   verifyKeyMiddleware,
 } from 'discord-interactions';
 import logger from './src/logger.js';
-import { validateBearerToken, storeWebhook, getRecentWebhooks } from './src/webhooks.js';
+import { validateBearerToken, storeWebhook, getRecentWebhooks, getWebhookById, acknowledgeWebhook } from './src/webhooks.js';
+import { formatAlertList, updateAlertMessage } from './src/alerts.js';
 
 // Create an express app
 const app = express();
@@ -113,8 +114,104 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
       }
     }
 
+    // "alert" command with subcommands
+    if (name === 'alert') {
+      const subcommand = options?.[0]?.name;
+      
+      if (subcommand === 'list') {
+        logger.info({ command: name, subcommand, interaction_id: id }, 'Handling alert list command');
+        
+        const recentWebhooks = getRecentWebhooks();
+        const response = formatAlertList(recentWebhooks);
+        
+        return res.send({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: response
+        });
+      }
+      
+      if (subcommand === 'ack') {
+        const alertId = options?.[0]?.options?.[0]?.value;
+        const user = req.body.member?.user || req.body.user;
+        
+        logger.info({ 
+          command: name, 
+          subcommand, 
+          interaction_id: id,
+          alertId
+        }, 'Handling alert ack command');
+        
+        const webhookId = parseInt(alertId);
+        const webhook = acknowledgeWebhook(webhookId, user);
+        
+        if (webhook) {
+          // Update the Discord message
+          await updateAlertMessage(webhook);
+          
+          return res.send({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: `✅ Alert ${webhookId} acknowledged successfully`,
+              ephemeral: true
+            }
+          });
+        } else {
+          return res.send({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: `❌ Alert ${alertId} not found or already acknowledged`,
+              ephemeral: true
+            }
+          });
+        }
+      }
+    }
+
     logger.error({ command: name, interaction_id: id }, 'Unknown command received');
     return res.status(400).json({ error: 'unknown command' });
+  }
+
+  /**
+   * Handle message component interactions (buttons, selects, etc)
+   */
+  if (type === InteractionType.MESSAGE_COMPONENT) {
+    const { custom_id } = data;
+    
+    // Handle acknowledge button clicks
+    if (custom_id && custom_id.startsWith('ack_')) {
+      const webhookId = parseInt(custom_id.substring(4));
+      const user = req.body.member?.user || req.body.user;
+      
+      logger.info({ 
+        interaction_id: id, 
+        webhookId,
+        user: user?.username 
+      }, 'Handling acknowledge button');
+      
+      // Acknowledge the webhook
+      const webhook = acknowledgeWebhook(webhookId, user);
+      
+      if (webhook) {
+        // Update the Discord message
+        await updateAlertMessage(webhook);
+        
+        return res.send({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: `✅ Alert acknowledged by ${user?.username || 'Unknown'}`,
+            ephemeral: true
+          }
+        });
+      } else {
+        return res.send({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: '❌ Alert not found or already acknowledged',
+            ephemeral: true
+          }
+        });
+      }
+    }
   }
 
   logger.error({ type, interaction_id: id }, 'Unknown interaction type');
@@ -124,7 +221,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
 /**
  * Webhook endpoint for Google Alerts
  */
-app.post('/webhooks/google-alerts', (req, res) => {
+app.post('/webhooks/google-alerts', async (req, res) => {
   // Validate authentication
   if (!validateBearerToken(req)) {
     logger.warn({ 
@@ -135,12 +232,10 @@ app.post('/webhooks/google-alerts', (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   
-  // Store the webhook
-  const webhook = storeWebhook({
+  // Store the webhook and send to Discord
+  const webhook = await storeWebhook({
     source: 'google-alerts',
-    headers: req.headers,
-    body: req.body,
-    ip: req.ip
+    ...req.body
   });
   
   logger.info({ 

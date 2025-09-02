@@ -1,4 +1,5 @@
 import logger from './logger.js';
+import { sendAlertToDiscord } from './alerts.js';
 
 // In-memory storage for recent webhooks (for debugging)
 const recentWebhooks = [];
@@ -37,14 +38,26 @@ export function validateBearerToken(req) {
 }
 
 /**
- * Stores a webhook in memory for debugging
+ * Stores a webhook in memory for debugging and sends to Discord
  */
-export function storeWebhook(webhook) {
+export async function storeWebhook(webhook) {
   const timestampedWebhook = {
     ...webhook,
     receivedAt: new Date().toISOString(),
-    id: Date.now()
+    id: Date.now(),
+    timestamp: Date.now(),
+    payload: webhook
   };
+  
+  // Send to Discord if channel is configured
+  const channelId = process.env.DEFAULT_CHANNEL_ID;
+  if (channelId) {
+    const message = await sendAlertToDiscord(timestampedWebhook, channelId);
+    if (message) {
+      timestampedWebhook.messageId = message.id;
+      timestampedWebhook.channelId = message.channel_id;
+    }
+  }
   
   recentWebhooks.unshift(timestampedWebhook);
   
@@ -74,4 +87,40 @@ export function getRecentWebhooks() {
 export function clearWebhooks() {
   recentWebhooks.length = 0;
   logger.info('Cleared all stored webhooks');
+}
+
+/**
+ * Gets a webhook by ID
+ */
+export function getWebhookById(id) {
+  return recentWebhooks.find(w => w.id === id);
+}
+
+/**
+ * Acknowledges a webhook
+ */
+export function acknowledgeWebhook(id, user) {
+  const webhook = getWebhookById(id);
+  
+  if (!webhook) {
+    logger.warn({ webhookId: id }, 'Webhook not found for acknowledgment');
+    return null;
+  }
+  
+  if (webhook.acknowledged) {
+    logger.warn({ webhookId: id }, 'Webhook already acknowledged');
+    return null;
+  }
+  
+  webhook.acknowledged = true;
+  webhook.acknowledgedBy = user?.username || 'Unknown';
+  webhook.acknowledgedById = user?.id;
+  webhook.acknowledgedAt = new Date().toISOString();
+  
+  logger.info({ 
+    webhookId: id,
+    acknowledgedBy: webhook.acknowledgedBy
+  }, 'Webhook acknowledged');
+  
+  return webhook;
 }
