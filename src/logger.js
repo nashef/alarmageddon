@@ -35,7 +35,8 @@ if (isDevelopment) {
       options: {
         colorize: true,
         translateTime: 'HH:MM:ss.l',
-        ignore: 'pid,hostname'
+        ignore: 'pid,hostname',
+        singleLine: true
       }
     })
   });
