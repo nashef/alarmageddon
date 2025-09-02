@@ -139,16 +139,19 @@ export async function sendAlertToDiscord(webhook, channelId) {
   }
 }
 
-// Format alert list for Discord
-export function formatAlertList(webhooks) {
-  if (!webhooks || webhooks.length === 0) {
+// Format alert list for Discord (only shows unacknowledged alerts)
+export function formatAlertList(webhooks, showAll = false) {
+  // Filter out acknowledged alerts unless showAll is true
+  const activeWebhooks = showAll ? webhooks : webhooks.filter(w => !w.acknowledged);
+  
+  if (!activeWebhooks || activeWebhooks.length === 0) {
     return {
-      content: 'No recent alerts found.',
+      content: 'No active alerts found. All alerts have been acknowledged.',
       ephemeral: true
     };
   }
   
-  const alertList = webhooks.map((webhook, index) => {
+  const alertList = activeWebhooks.map((webhook, index) => {
     const payload = webhook.payload || {};
     const severity = payload.severity || payload.level || 'info';
     const title = payload.title || payload.subject || 'Alert';
@@ -159,13 +162,19 @@ export function formatAlertList(webhooks) {
     return `**${index + 1}.** ID: \`${webhook.id}\` | \`${severity.toUpperCase()}\` ${title.substring(0, 50)} - ${time} ${messageId}${ackStatus}`;
   }).join('\n');
   
+  const totalCount = webhooks.length;
+  const ackedCount = webhooks.filter(w => w.acknowledged).length;
+  const footerText = ackedCount > 0 
+    ? `Showing ${activeWebhooks.length} active alerts (${ackedCount} acknowledged hidden)`
+    : `Showing ${activeWebhooks.length} active alerts`;
+  
   return {
     embeds: [{
-      title: 'Recent Alerts',
+      title: 'Active Alerts',
       description: alertList,
       color: 0x0099FF,
       footer: {
-        text: `Showing ${webhooks.length} most recent alerts`
+        text: footerText
       }
     }],
     ephemeral: true

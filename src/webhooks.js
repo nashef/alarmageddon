@@ -124,3 +124,45 @@ export function acknowledgeWebhook(id, user) {
   
   return webhook;
 }
+
+/**
+ * Acknowledges multiple webhooks matching a pattern
+ */
+export function acknowledgeWebhooksByPattern(pattern, user) {
+  const regex = new RegExp(pattern, 'i'); // Case-insensitive matching
+  const acknowledged = [];
+  const alreadyAcked = [];
+  
+  for (const webhook of recentWebhooks) {
+    if (webhook.acknowledged) {
+      continue; // Skip already acknowledged
+    }
+    
+    // Check if pattern matches any relevant field
+    const payload = webhook.payload || {};
+    const title = payload.title || payload.subject || '';
+    const description = payload.description || payload.message || payload.body || '';
+    const severity = payload.severity || payload.level || '';
+    const service = payload.service || '';
+    const hostname = payload.hostname || payload.host || '';
+    
+    // Combine all fields for matching (don't convert to lowercase since regex is case-insensitive)
+    const searchText = `${title} ${description} ${severity} ${service} ${hostname}`;
+    
+    if (regex.test(searchText)) {
+      webhook.acknowledged = true;
+      webhook.acknowledgedBy = user?.username || 'Unknown';
+      webhook.acknowledgedById = user?.id;
+      webhook.acknowledgedAt = new Date().toISOString();
+      acknowledged.push(webhook);
+      
+      logger.info({ 
+        webhookId: webhook.id,
+        acknowledgedBy: webhook.acknowledgedBy,
+        pattern
+      }, 'Webhook acknowledged by pattern');
+    }
+  }
+  
+  return { acknowledged, alreadyAcked };
+}

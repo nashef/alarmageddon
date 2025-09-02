@@ -6,7 +6,7 @@ import {
   verifyKeyMiddleware,
 } from 'discord-interactions';
 import logger from './src/logger.js';
-import { validateBearerToken, storeWebhook, getRecentWebhooks, getWebhookById, acknowledgeWebhook } from './src/webhooks.js';
+import { validateBearerToken, storeWebhook, getRecentWebhooks, getWebhookById, acknowledgeWebhook, acknowledgeWebhooksByPattern } from './src/webhooks.js';
 import { formatAlertList, updateAlertMessage } from './src/alerts.js';
 
 // Create an express app
@@ -131,39 +131,41 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
       }
       
       if (subcommand === 'ack') {
-        const alertId = options?.[0]?.options?.[0]?.value;
+        const pattern = options?.[0]?.options?.[0]?.value || '.*'; // Default to match all
         const user = req.body.member?.user || req.body.user;
         
         logger.info({ 
           command: name, 
           subcommand, 
           interaction_id: id,
-          alertId
-        }, 'Handling alert ack command');
+          pattern
+        }, 'Handling alert ack command with pattern');
         
-        const webhookId = parseInt(alertId);
-        const webhook = acknowledgeWebhook(webhookId, user);
+        const { acknowledged, alreadyAcked } = acknowledgeWebhooksByPattern(pattern, user);
         
-        if (webhook) {
-          // Update the Discord message
+        // Update Discord messages for all acknowledged alerts
+        for (const webhook of acknowledged) {
           await updateAlertMessage(webhook);
-          
-          return res.send({
-            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: `✅ Alert ${webhookId} acknowledged successfully`,
-              ephemeral: true
-            }
-          });
-        } else {
-          return res.send({
-            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: `❌ Alert ${alertId} not found or already acknowledged`,
-              ephemeral: true
-            }
-          });
         }
+        
+        let responseMessage = '';
+        
+        if (acknowledged.length > 0) {
+          const titles = acknowledged.map(w => w.payload?.title || w.payload?.subject || 'Alert').slice(0, 3);
+          const titlesText = titles.join(', ');
+          const moreText = acknowledged.length > 3 ? ` and ${acknowledged.length - 3} more` : '';
+          responseMessage = `✅ Acknowledged ${acknowledged.length} alert(s): ${titlesText}${moreText}`;
+        } else {
+          responseMessage = `❌ No unacknowledged alerts found matching pattern: ${pattern}`;
+        }
+        
+        return res.send({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: responseMessage,
+            ephemeral: true
+          }
+        });
       }
     }
 

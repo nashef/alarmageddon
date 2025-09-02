@@ -41,14 +41,14 @@ const ALERT_COMMAND = {
     },
     {
       name: 'ack',
-      description: 'Acknowledge an alert by ID',
+      description: 'Acknowledge alerts matching a pattern (default: all)',
       type: 1, // SUB_COMMAND
       options: [
         {
-          name: 'id',
-          description: 'Alert ID to acknowledge',
+          name: 'pattern',
+          description: 'Regex pattern to match alerts (e.g., "critical", "disk.*", ".*") - default: .* (all)',
           type: 3, // STRING
-          required: true
+          required: false
         }
       ]
     },
