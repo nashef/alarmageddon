@@ -8,6 +8,7 @@ import {
 import logger from './src/logger.js';
 import { validateBearerToken, storeWebhook, getRecentWebhooks, getWebhookById, acknowledgeWebhook, acknowledgeWebhooksByPattern } from './src/webhooks.js';
 import { formatAlertList, updateAlertMessage } from './src/alerts.js';
+import { createSilence, getActiveSilences, deleteSilence, formatSilenceList, setupSilenceCleanup } from './src/silences.js';
 
 // Create an express app
 const app = express();
@@ -169,6 +170,88 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
       }
     }
 
+    // "silence" command with subcommands
+    if (name === 'silence') {
+      const subcommand = options?.[0]?.name;
+      
+      if (subcommand === 'create') {
+        const duration = options?.[0]?.options?.find(o => o.name === 'duration')?.value;
+        const pattern = options?.[0]?.options?.find(o => o.name === 'pattern')?.value || '.*';
+        const user = req.body.member?.user || req.body.user;
+        
+        logger.info({ 
+          command: name, 
+          subcommand, 
+          interaction_id: id,
+          duration,
+          pattern
+        }, 'Handling silence create command');
+        
+        const silence = createSilence(pattern, duration, user);
+        
+        if (silence) {
+          return res.send({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: `🔇 Created silence \`${silence.id}\` for pattern \`${pattern}\` lasting ${duration}. Expires at ${new Date(silence.expiresAt).toLocaleString()}`,
+              ephemeral: true
+            }
+          });
+        } else {
+          return res.send({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: `❌ Invalid duration format. Use formats like: 30s, 5m, 2h, 1d`,
+              ephemeral: true
+            }
+          });
+        }
+      }
+      
+      if (subcommand === 'list') {
+        logger.info({ command: name, subcommand, interaction_id: id }, 'Handling silence list command');
+        
+        const silences = getActiveSilences();
+        const response = formatSilenceList(silences);
+        
+        return res.send({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: response
+        });
+      }
+      
+      if (subcommand === 'delete') {
+        const silenceId = options?.[0]?.options?.[0]?.value;
+        
+        logger.info({ 
+          command: name, 
+          subcommand, 
+          interaction_id: id,
+          silenceId
+        }, 'Handling silence delete command');
+        
+        const deleted = deleteSilence(silenceId);
+        
+        if (deleted) {
+          return res.send({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: `✅ Deleted silence \`${silenceId}\``,
+              ephemeral: true
+            }
+          });
+        } else {
+          return res.send({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: `❌ Silence \`${silenceId}\` not found`,
+              ephemeral: true
+            }
+          });
+        }
+      }
+    }
+
     logger.error({ command: name, interaction_id: id }, 'Unknown command received');
     return res.status(400).json({ error: 'unknown command' });
   }
@@ -295,4 +378,7 @@ app.get('/health', (req, res) => {
 
 app.listen(PORT, () => {
   logger.info({ port: PORT }, 'Server started');
+  
+  // Set up periodic silence cleanup
+  setupSilenceCleanup();
 });

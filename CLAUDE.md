@@ -36,6 +36,9 @@ AMGN_LOGFILE=alarmageddon.log
 3. **Test webhooks**: Use curl examples below
 4. **Check logs**: Structured JSON logs in `alarmageddon.log` and console
 
+### Server Restart Policy
+**IMPORTANT**: If the server needs to be restarted (e.g., for environment variable changes, port conflicts, or manual restart needed), PAUSE and ask the user to restart it. Do not attempt to kill and restart the server programmatically. The user typically has the server running in a separate terminal with `npm run dev`.
+
 ## Testing Commands
 
 ### Send Test Alert

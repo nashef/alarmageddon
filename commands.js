@@ -55,7 +55,55 @@ const ALERT_COMMAND = {
   ],
 };
 
-const ALL_COMMANDS = [PING_COMMAND, WEBHOOK_COMMAND, ALERT_COMMAND];
+// Silence management command
+const SILENCE_COMMAND = {
+  name: 'silence',
+  description: 'Manage alert silences',
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 1, 2],
+  options: [
+    {
+      name: 'create',
+      description: 'Create a new silence',
+      type: 1, // SUB_COMMAND
+      options: [
+        {
+          name: 'duration',
+          description: 'How long to silence (e.g., 30s, 5m, 2h, 1d)',
+          type: 3, // STRING
+          required: true
+        },
+        {
+          name: 'pattern',
+          description: 'Regex pattern to match alerts (default: .* for all)',
+          type: 3, // STRING
+          required: false
+        }
+      ]
+    },
+    {
+      name: 'list',
+      description: 'Show active silences',
+      type: 1, // SUB_COMMAND
+    },
+    {
+      name: 'delete',
+      description: 'Delete a silence',
+      type: 1, // SUB_COMMAND
+      options: [
+        {
+          name: 'id',
+          description: 'ID of the silence to delete',
+          type: 3, // STRING
+          required: true
+        }
+      ]
+    },
+  ],
+};
+
+const ALL_COMMANDS = [PING_COMMAND, WEBHOOK_COMMAND, ALERT_COMMAND, SILENCE_COMMAND];
 
 InstallGlobalCommands(process.env.APP_ID, ALL_COMMANDS)
   .then(commands => {

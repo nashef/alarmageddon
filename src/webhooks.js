@@ -1,5 +1,6 @@
 import logger from './logger.js';
 import { sendAlertToDiscord } from './alerts.js';
+import { isAlertSilenced } from './silences.js';
 
 // In-memory storage for recent webhooks (for debugging)
 const recentWebhooks = [];
@@ -49,13 +50,26 @@ export async function storeWebhook(webhook) {
     payload: webhook
   };
   
-  // Send to Discord if channel is configured
-  const channelId = process.env.DEFAULT_CHANNEL_ID;
-  if (channelId) {
-    const message = await sendAlertToDiscord(timestampedWebhook, channelId);
-    if (message) {
-      timestampedWebhook.messageId = message.id;
-      timestampedWebhook.channelId = message.channel_id;
+  // Check if alert is silenced
+  const silence = isAlertSilenced(timestampedWebhook);
+  if (silence) {
+    timestampedWebhook.silenced = true;
+    timestampedWebhook.silencedBy = silence.id;
+    
+    logger.info({ 
+      webhookId: timestampedWebhook.id,
+      silenceId: silence.id,
+      pattern: silence.pattern
+    }, 'Alert silenced, not sending to Discord');
+  } else {
+    // Send to Discord if channel is configured and not silenced
+    const channelId = process.env.DEFAULT_CHANNEL_ID;
+    if (channelId) {
+      const message = await sendAlertToDiscord(timestampedWebhook, channelId);
+      if (message) {
+        timestampedWebhook.messageId = message.id;
+        timestampedWebhook.channelId = message.channel_id;
+      }
     }
   }
   
@@ -68,7 +82,8 @@ export async function storeWebhook(webhook) {
   
   logger.debug({ 
     webhookId: timestampedWebhook.id,
-    totalStored: recentWebhooks.length 
+    totalStored: recentWebhooks.length,
+    silenced: timestampedWebhook.silenced || false
   }, 'Webhook stored');
   
   return timestampedWebhook;
