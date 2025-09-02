@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import logger from './src/logger.js';
 
 export async function DiscordRequest(endpoint, options) {
   // append endpoint to root API URL
@@ -17,7 +18,11 @@ export async function DiscordRequest(endpoint, options) {
   // throw API errors
   if (!res.ok) {
     const data = await res.json();
-    console.log(res.status);
+    logger.warn({ 
+      status: res.status, 
+      endpoint,
+      error: data 
+    }, 'Discord API request failed');
     throw new Error(JSON.stringify(data));
   }
   // return original response
@@ -31,7 +36,14 @@ export async function InstallGlobalCommands(appId, commands) {
   try {
     // This is calling the bulk overwrite endpoint: https://discord.com/developers/docs/interactions/application-commands#bulk-overwrite-global-application-commands
     await DiscordRequest(endpoint, { method: 'PUT', body: commands });
+    logger.info({ 
+      appId, 
+      commandCount: commands.length 
+    }, 'Successfully registered global commands');
   } catch (err) {
-    console.error(err);
+    logger.error({ 
+      error: err.message,
+      appId 
+    }, 'Failed to register global commands');
   }
 }
