@@ -3,30 +3,30 @@
 ## Overview
 Build a Production SRE Discord bot using an iterative approach where each iteration produces a working, deployable bot with increasing functionality.
 
-## Iteration 0: Project Setup (Day 1)
+## Iteration 0: Project Setup (Day 1) ✅ COMPLETE
 **Goal:** Clean up the example code and prepare the foundation
 
 ### Tasks
-- [ ] Remove game-related files (game.js, examples/)
-- [ ] Clean up app.js to remove game logic
-- [ ] Update package.json with new project name
-- [ ] Create basic project structure
-- [ ] Set up .env file with Discord credentials
-- [ ] Update README.md with setup instructions
+- [x] Remove game-related files (game.js, examples/)
+- [x] Clean up app.js to remove game logic
+- [x] Update package.json with new project name
+- [x] Create basic project structure
+- [x] Set up .env file with Discord credentials
+- [x] Update README.md with setup instructions
 
 ### Deliverable
-- Clean project ready for development
-- Bot can be registered with Discord
+- ✅ Clean project ready for development
+- ✅ Bot can be registered with Discord
 
 ---
 
-## Iteration 1: Basic Bot with Ping Command (Day 2)
+## Iteration 1: Basic Bot with Ping Command (Day 2) ✅ COMPLETE
 **Goal:** Deploy a minimal working bot to validate setup
 
 ### Features
-- Single `/ping` command that responds with "Pong!"
-- Basic health check endpoint
-- Proper environment configuration
+- ✅ Single `/ping` command that responds with "Pong!"
+- ✅ Basic health check endpoint
+- ✅ Proper environment configuration
 
 ### Implementation
 ```javascript
@@ -41,15 +41,15 @@ const PING_COMMAND = {
 ```
 
 ### Testing
-- Deploy bot to server
-- Register commands with Discord
-- Test `/ping` command in Discord
-- Verify health endpoint responds
+- ✅ Deploy bot to server
+- ✅ Register commands with Discord
+- ✅ Test `/ping` command in Discord
+- ✅ Verify health endpoint responds
 
 ### Success Criteria
-- Bot responds to `/ping` with "Pong!"
-- Health endpoint returns 200 OK
-- Bot stays online and stable
+- ✅ Bot responds to `/ping` with "Pong!"
+- ✅ Health endpoint returns 200 OK with structured logging
+- ✅ Bot stays online and stable
 
 ---
 
@@ -87,60 +87,64 @@ GET /webhooks/recent - View last 10 webhooks (debug)
 
 ---
 
-## Iteration 3: Basic Alert Posting (Days 5-6)
+## Iteration 3: Basic Alert Posting (Days 5-6) ✅ COMPLETE
 **Goal:** Post webhook data to Discord channel
 
 ### Features
-- Parse webhook payload
-- Format as Discord embed
-- Post to configured channel
-- `/alert list` command to show recent alerts
+- ✅ Parse webhook payload
+- ✅ Format as Discord embed with color-coding by severity
+- ✅ Post to configured channel
+- ✅ `/alert list` command to show recent alerts
 
 ### Implementation
-- Create alert formatter
-- Add Discord message sending
-- Store message IDs with alerts
-- Implement basic `/alert list` command
+- ✅ Created alert formatter in `src/alerts.js`
+- ✅ Added Discord message sending with embeds
+- ✅ Store message IDs with alerts for tracking
+- ✅ Implemented `/alert list` command
 
 ### Testing
-- Send webhook → See Discord message
-- Verify embed formatting
-- Test `/alert list` shows recent alerts
+- ✅ Send webhook → See Discord message
+- ✅ Verify embed formatting with severity colors
+- ✅ Test `/alert list` shows recent alerts
 
 ### Success Criteria
-- Webhooks result in Discord messages
-- Messages are properly formatted
-- Alert list command works
-- No duplicate messages
+- ✅ Webhooks result in Discord messages
+- ✅ Messages are properly formatted with severity colors
+- ✅ Alert list command works
+- ✅ No duplicate messages
 
 ---
 
-## Iteration 4: Alert Management (Days 7-8)
+## Iteration 4: Alert Management (Days 7-8) ✅ COMPLETE
 **Goal:** Add alert acknowledgment and basic interaction
 
 ### Features
-- Add "Acknowledge" button to alerts
-- `/alert ack <id>` command
-- Update message when acknowledged
-- Track who acknowledged and when
+- ✅ Add "Acknowledge" button to alerts
+- ✅ `/alert ack <pattern>` command with regex matching
+- ✅ Update message when acknowledged
+- ✅ Track who acknowledged and when
+- ✅ Bulk acknowledgment support
 
 ### Implementation
-- Add Discord components to messages
-- Handle button interactions
-- Update database schema for acknowledgments
-- Implement ack command
+- ✅ Added Discord components (buttons) to messages
+- ✅ Handle button interactions
+- ✅ In-memory acknowledgment tracking (database in iteration 9)
+- ✅ Implemented regex-based ack command for bulk operations
+- ✅ Filter acknowledged alerts from `/alert list`
 
 ### Testing
-- Click acknowledge button
-- Use ack command
-- Verify message updates
-- Check acknowledgment tracking
+- ✅ Click acknowledge button - message updates
+- ✅ Use ack command with patterns (e.g., "disk", "critical", "db-01")
+- ✅ Test bulk acknowledgment with `/alert ack` (no args = all)
+- ✅ Verify message updates to green when acknowledged
+- ✅ Check acknowledgment tracking shows user and timestamp
 
 ### Success Criteria
-- Buttons work and update messages
-- Acknowledgments are tracked
-- Both button and command work
-- User info is recorded
+- ✅ Buttons work and update messages
+- ✅ Acknowledgments are tracked with user info
+- ✅ Both button and regex command work
+- ✅ `/alert list` filters out acknowledged alerts
+- ✅ Bulk operations via regex patterns
 
 ---
 
@@ -503,8 +507,8 @@ main
 
 ## Timeline Summary
 
-**Week 1:** Iterations 0-3 (Basic bot with webhook → Discord)
-**Week 2:** Iterations 4-5 (Acknowledgments and silencing)
+**Week 1:** Iterations 0-3 (Basic bot with webhook → Discord) ✅ COMPLETE
+**Week 2:** Iterations 4-5 (Acknowledgments and silencing) - IN PROGRESS
 **Week 3:** Iterations 6-7 (AlertRouter and routing rules)
 **Week 4:** Iteration 8-9 (Deduplication and hardening)
 **Week 5:** Iterations 10-11 (Advanced features and polish)
@@ -515,9 +519,12 @@ Total: **5 weeks** from start to production-ready bot with full routing
 
 ## Next Steps
 
-1. **Immediate:** Complete Iteration 0 (cleanup)
-2. **Day 2:** Deploy Iteration 1 (ping bot)
-3. **Day 3:** Start Iteration 2 (webhooks)
+1. **Completed:** Iterations 0-4 ✅
+   - Cleanup, ping bot, webhook receiver, alert posting, acknowledgments
+2. **Next:** Iteration 5 (Silence System)
+   - Add ability to silence alerts by pattern for specified duration
+3. **Then:** Iteration 6 (Basic AlertRouter)
+   - Add routing layer for future flexibility
 4. **Daily:** Review progress and adjust
 
 Each iteration builds confidence and adds functionality while maintaining a working system throughout development.
