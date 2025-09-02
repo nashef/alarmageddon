@@ -53,15 +53,15 @@ const PING_COMMAND = {
 
 ---
 
-## Iteration 2: Webhook Receiver (Days 3-4)
+## Iteration 2: Webhook Receiver (Days 3-4) ✅ COMPLETE
 **Goal:** Accept and log webhooks without Discord integration
 
 ### Features
-- POST `/webhooks/google-alerts` endpoint
-- Bearer token authentication
-- Request validation and logging
-- In-memory storage of recent webhooks
-- `/webhook test` command to trigger test webhook
+- ✅ POST `/webhooks/google-alerts` endpoint
+- ✅ Bearer token authentication (+ URL token for Google Cloud)
+- ✅ Request validation and logging
+- ✅ In-memory storage of recent webhooks
+- ✅ `/webhook test` command to trigger test webhook
 
 ### Implementation
 ```javascript
@@ -74,16 +74,16 @@ GET /webhooks/recent - View last 10 webhooks (debug)
 ```
 
 ### Testing
-- Send test webhooks via curl
-- Verify authentication works
-- Check webhook storage
-- Test the `/webhook test` command
+- ✅ Send test webhooks via curl
+- ✅ Verify authentication works
+- ✅ Check webhook storage
+- ✅ Test the `/webhook test` command
 
 ### Success Criteria
-- Webhooks are received and validated
-- Invalid auth returns 401
-- Test command successfully triggers webhook
-- Recent webhooks can be retrieved
+- ✅ Webhooks are received and validated
+- ✅ Invalid auth returns 401
+- ✅ Test command successfully triggers webhook
+- ✅ Recent webhooks can be retrieved
 
 ---
 
@@ -175,36 +175,150 @@ GET /webhooks/recent - View last 10 webhooks (debug)
 
 ---
 
-## Iteration 6: Channel Routing (Days 12-13)
-**Goal:** Route alerts to different channels based on rules
+## Iteration 6: Basic AlertRouter (Days 12-13)
+**Goal:** Add routing layer between webhooks and Discord
 
 ### Features
-- Configure channels by severity
-- Route alerts based on content
-- `/config channel` command
-- Default channel fallback
+- Create AlertRouter component
+- Pass-through routing (all to DEFAULT_CHANNEL_ID)
+- Routing decision logging
+- Maintain backward compatibility
 
 ### Implementation
-- Add channel configuration
-- Implement routing logic
-- Create config commands
-- Add channel validation
+```javascript
+// New component
+class AlertRouter {
+  async route(alert) {
+    // For now, just pass through
+    const decision = {
+      action: 'PASS',
+      destination: process.env.DEFAULT_CHANNEL_ID,
+      timestamp: new Date()
+    };
+    
+    // Log routing decision
+    await logRoutingDecision(alert, decision);
+    
+    return decision;
+  }
+}
+```
 
 ### Testing
-- Set up multiple channels
-- Send alerts of different severities
-- Verify routing rules
-- Test fallback behavior
+- Webhook → AlertRouter → Discord flow
+- Verify routing logs are created
+- Ensure existing functionality unchanged
+- Test with various webhook payloads
 
 ### Success Criteria
-- Alerts route to correct channels
-- Configuration persists
-- Fallback works for unconfigured types
-- Invalid channels handled gracefully
+- AlertRouter integrated into webhook flow
+- All alerts still reach Discord
+- Routing decisions are logged
+- No breaking changes
 
 ---
 
-## Iteration 7: Alert Deduplication (Days 14-15)
+## Iteration 6.5: Routing Rules Engine (Days 14-15)
+**Goal:** Add database-backed routing rules with basic matchers
+
+### Features
+- SQLite database for routing rules
+- Priority-based rule evaluation
+- Basic matchers (exact, contains)
+- DROP and REDIRECT actions
+- `/route list` command
+
+### Implementation
+```javascript
+// Database schema
+CREATE TABLE routing_rules (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  priority INTEGER NOT NULL,
+  matcher_type TEXT,  // 'exact', 'contains'
+  matcher_path TEXT,   // e.g., 'severity', 'title'
+  matcher_value TEXT,
+  action TEXT,         // 'PASS', 'DROP', 'REDIRECT'
+  destination_channel_id TEXT
+);
+
+// Evaluate rules
+async function evaluateRules(alert) {
+  const rules = await db.query('SELECT * FROM routing_rules ORDER BY priority');
+  for (const rule of rules) {
+    if (matchesRule(alert, rule)) {
+      return rule.action;
+    }
+  }
+  return 'PASS';
+}
+```
+
+### Testing
+- Create rules via database
+- Test DROP action (alert not posted)
+- Test REDIRECT (goes to different channel)
+- Verify priority ordering
+- Test `/route list` command
+
+### Success Criteria
+- Rules stored in SQLite
+- Rules evaluated in priority order
+- DROP prevents Discord posting
+- REDIRECT changes destination channel
+- List command shows all rules
+
+---
+
+## Iteration 7: Advanced Routing (Days 16-17)
+**Goal:** Add advanced matchers and full routing command suite
+
+### Features
+- JSONPath matcher for complex queries
+- Regex matcher for patterns
+- ESCALATE action (mentions, priority)
+- `/route add`, `/route test`, `/route disable` commands
+- Routing metrics and audit log
+
+### Implementation
+```javascript
+// Advanced matchers
+function matchesRule(alert, rule) {
+  switch(rule.matcher_type) {
+    case 'jsonpath':
+      return JSONPath.query(alert, rule.matcher_path) === rule.matcher_value;
+    case 'regex':
+      return new RegExp(rule.matcher_value).test(alert[rule.matcher_path]);
+    case 'exact':
+      return alert[rule.matcher_path] === rule.matcher_value;
+    case 'contains':
+      return alert[rule.matcher_path]?.includes(rule.matcher_value);
+  }
+}
+
+// Commands
+/route add "DB Errors" $.severity="critical" ESCALATE #ops-alerts
+/route test '{"severity":"critical","service":"database"}'
+/route disable rule_123
+```
+
+### Testing
+- Test JSONPath queries (nested properties)
+- Test regex patterns
+- Test ESCALATE with mentions
+- Test all routing commands
+- Verify audit logging
+
+### Success Criteria
+- Complex routing rules work
+- Commands create/modify rules
+- Test command validates rules
+- Audit log tracks decisions
+- Metrics show routing stats
+
+---
+
+## Iteration 8: Alert Deduplication (Days 18-19)
 **Goal:** Prevent duplicate alerts from spamming channels
 
 ### Features
@@ -233,7 +347,7 @@ GET /webhooks/recent - View last 10 webhooks (debug)
 
 ---
 
-## Iteration 8: Production Hardening (Days 16-18)
+## Iteration 9: Production Hardening (Days 20-22)
 **Goal:** Prepare for production deployment
 
 ### Features
@@ -267,7 +381,7 @@ GET /webhooks/recent - View last 10 webhooks (debug)
 
 ---
 
-## Iteration 9: Advanced Commands (Days 19-20)
+## Iteration 10: Advanced Commands (Days 23-24)
 **Goal:** Add power-user features
 
 ### Features
@@ -296,7 +410,7 @@ GET /webhooks/recent - View last 10 webhooks (debug)
 
 ---
 
-## Iteration 10: Monitoring & Polish (Days 21-22)
+## Iteration 11: Monitoring & Polish (Days 25-26)
 **Goal:** Add observability and final polish
 
 ### Features
@@ -390,11 +504,12 @@ main
 ## Timeline Summary
 
 **Week 1:** Iterations 0-3 (Basic bot with webhook → Discord)
-**Week 2:** Iterations 4-6 (Interactions and silencing)
-**Week 3:** Iterations 7-9 (Advanced features)
-**Week 4:** Iteration 10 (Polish and deploy)
+**Week 2:** Iterations 4-5 (Acknowledgments and silencing)
+**Week 3:** Iterations 6-7 (AlertRouter and routing rules)
+**Week 4:** Iteration 8-9 (Deduplication and hardening)
+**Week 5:** Iterations 10-11 (Advanced features and polish)
 
-Total: **4 weeks** from start to production-ready bot
+Total: **5 weeks** from start to production-ready bot with full routing
 
 ---
 
