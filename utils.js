@@ -35,15 +35,22 @@ export async function InstallGlobalCommands(appId, commands) {
 
   try {
     // This is calling the bulk overwrite endpoint: https://discord.com/developers/docs/interactions/application-commands#bulk-overwrite-global-application-commands
-    await DiscordRequest(endpoint, { method: 'PUT', body: commands });
+    const response = await DiscordRequest(endpoint, { method: 'PUT', body: commands });
+    const registeredCommands = await response.json();
+    
     logger.info({ 
       appId, 
-      commandCount: commands.length 
+      commandCount: commands.length,
+      registeredCount: registeredCommands.length,
+      commandNames: registeredCommands.map(cmd => cmd.name)
     }, 'Successfully registered global commands');
+    
+    return registeredCommands;
   } catch (err) {
     logger.error({ 
       error: err.message,
       appId 
     }, 'Failed to register global commands');
+    throw err;
   }
 }
