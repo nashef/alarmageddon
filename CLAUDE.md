@@ -4,14 +4,15 @@
 Alarmageddon is a Production SRE Discord bot that receives webhooks from monitoring systems (like Google Cloud Alerts) and posts them as formatted messages to Discord channels. The bot provides alert management capabilities including acknowledgment, silencing, and routing.
 
 ## Current Status (Iterations Completed)
-- ✅ **Iteration 0-4 COMPLETE**: Basic setup, ping command, webhook receiver, alert posting, acknowledgment system
-- 🚧 **Next**: Iteration 5 (Silence System)
+- ✅ **Iteration 0-5 COMPLETE**: Basic setup, ping command, webhook receiver, alert posting, acknowledgment system, silence system
+- 🚧 **Next**: Iteration 6 (Basic AlertRouter)
 - See `PLAN.md` for full iteration roadmap
 
 ## Key Files
 - `app.js` - Main Express server handling Discord interactions and webhooks
 - `src/alerts.js` - Alert formatting and Discord message management
 - `src/webhooks.js` - Webhook storage and acknowledgment logic
+- `src/silences.js` - Silence management and pattern matching
 - `src/logger.js` - Structured logging with Pino
 - `commands.js` - Discord command registration script
 - `PLAN.md` - Iterative development plan
@@ -64,6 +65,9 @@ curl http://localhost:31337/health
 - `/webhook test` - Send test webhook to bot
 - `/alert list` - Show active (unacknowledged) alerts
 - `/alert ack [pattern]` - Acknowledge alerts matching regex pattern (default: .* for all)
+- `/silence create <duration> [pattern]` - Create a silence (e.g., 5m, 2h, 1d)
+- `/silence list` - Show active silences
+- `/silence delete <id>` - Remove a silence
 
 ## Key Features Implemented
 
@@ -72,6 +76,12 @@ curl http://localhost:31337/health
 - **Regex patterns**: `/alert ack disk` acknowledges all disk-related alerts
 - **Bulk operations**: `/alert ack` with no args acknowledges all
 - **Filtering**: `/alert list` only shows unacknowledged alerts
+
+### Alert Silencing
+- **Pattern-based**: Silence alerts matching regex patterns
+- **Time-based**: Specify duration (30s, 5m, 2h, 1d)
+- **Auto-expiration**: Silences automatically expire and cleanup
+- **Management**: List and delete active silences
 
 ### Webhook Authentication
 - **Bearer token**: Via Authorization header (preferred)
@@ -106,11 +116,11 @@ curl http://localhost:31337/health
 - Check the webhook ID in logs matches what you're trying to acknowledge
 - Use regex patterns for bulk acknowledgment
 
-## Next Development Tasks (Iteration 5)
-1. Implement silence system to prevent certain alerts from posting
-2. Add `/silence <duration> [pattern]` command
-3. Create silence expiration logic
-4. Update webhook handler to check silences before posting
+## Next Development Tasks (Iteration 6)
+1. Create AlertRouter component for routing decisions
+2. Implement pass-through routing (all to DEFAULT_CHANNEL_ID)
+3. Add routing decision logging
+4. Maintain backward compatibility with existing functionality
 
 ## Important Conventions
 - Use structured logging with contextual fields

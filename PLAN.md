@@ -148,34 +148,34 @@ GET /webhooks/recent - View last 10 webhooks (debug)
 
 ---
 
-## Iteration 5: Silence System (Days 9-11)
+## Iteration 5: Silence System (Days 9-11) ✅ COMPLETE
 **Goal:** Implement alert silencing functionality
 
 ### Features
-- `/silence <duration> [pattern]` command
-- Silence matching during webhook processing
-- `/silence list` to show active silences
-- `/silence delete <id>` to remove silences
-- Automatic expiration
+- ✅ `/silence create <duration> [pattern]` command
+- ✅ Silence matching during webhook processing
+- ✅ `/silence list` to show active silences
+- ✅ `/silence delete <id>` to remove silences
+- ✅ Automatic expiration
 
 ### Implementation
-- Add silences table to database
-- Implement regex matching logic
-- Create silence management commands
-- Add background job for cleanup
-- Update webhook flow for silence checking
+- ✅ Add silences module (in-memory for now, database in Iteration 9)
+- ✅ Implement regex matching logic
+- ✅ Create silence management commands
+- ✅ Add background job for cleanup
+- ✅ Update webhook flow for silence checking
 
 ### Testing
-- Create silence → Send matching webhook → No Discord message
-- List active silences
-- Delete silence → Alerts resume
-- Test expiration
+- ✅ Create silence → Send matching webhook → No Discord message
+- ✅ List active silences
+- ✅ Delete silence → Alerts resume
+- ✅ Test expiration
 
 ### Success Criteria
-- Silenced alerts don't post to Discord
-- Silence patterns work correctly
-- Silences expire on schedule
-- All silence commands functional
+- ✅ Silenced alerts don't post to Discord
+- ✅ Silence patterns work correctly
+- ✅ Silences expire on schedule
+- ✅ All silence commands functional
 
 ---
 
@@ -508,8 +508,8 @@ main
 ## Timeline Summary
 
 **Week 1:** Iterations 0-3 (Basic bot with webhook → Discord) ✅ COMPLETE
-**Week 2:** Iterations 4-5 (Acknowledgments and silencing) - IN PROGRESS
-**Week 3:** Iterations 6-7 (AlertRouter and routing rules)
+**Week 2:** Iterations 4-5 (Acknowledgments and silencing) ✅ COMPLETE
+**Week 3:** Iterations 6-7 (AlertRouter and routing rules) - IN PROGRESS
 **Week 4:** Iteration 8-9 (Deduplication and hardening)
 **Week 5:** Iterations 10-11 (Advanced features and polish)
 
@@ -519,12 +519,12 @@ Total: **5 weeks** from start to production-ready bot with full routing
 
 ## Next Steps
 
-1. **Completed:** Iterations 0-4 ✅
-   - Cleanup, ping bot, webhook receiver, alert posting, acknowledgments
-2. **Next:** Iteration 5 (Silence System)
-   - Add ability to silence alerts by pattern for specified duration
-3. **Then:** Iteration 6 (Basic AlertRouter)
+1. **Completed:** Iterations 0-5 ✅
+   - Cleanup, ping bot, webhook receiver, alert posting, acknowledgments, silence system
+2. **Next:** Iteration 6 (Basic AlertRouter)
    - Add routing layer for future flexibility
+3. **Then:** Iteration 6.5 (Routing Rules Engine)
+   - Database-backed routing rules with basic matchers
 4. **Daily:** Review progress and adjust
 
 Each iteration builds confidence and adds functionality while maintaining a working system throughout development.
