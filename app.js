@@ -10,6 +10,7 @@ import { validateBearerToken, storeWebhook, getRecentWebhooks, getWebhookById, a
 import { formatAlertList, updateAlertMessage } from './src/alerts.js';
 import { createSilence, getActiveSilences, deleteSilence, formatSilenceList, setupSilenceCleanup } from './src/silences.js';
 import { getAlertRouter } from './src/router.js';
+import { initDatabase } from './src/database.js';
 
 // Create an express app
 const app = express();
@@ -123,7 +124,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
       if (subcommand === 'list') {
         logger.info({ command: name, subcommand, interaction_id: id }, 'Handling alert list command');
         
-        const recentWebhooks = getRecentWebhooks();
+        const recentWebhooks = await getRecentWebhooks();
         const response = formatAlertList(recentWebhooks);
         
         return res.send({
@@ -143,7 +144,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
           pattern
         }, 'Handling alert ack command with pattern');
         
-        const { acknowledged, alreadyAcked } = acknowledgeWebhooksByPattern(pattern, user);
+        const { acknowledged, alreadyAcked } = await acknowledgeWebhooksByPattern(pattern, user);
         
         // Update Discord messages for all acknowledged alerts
         for (const webhook of acknowledged) {
@@ -188,7 +189,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
           pattern
         }, 'Handling silence create command');
         
-        const silence = createSilence(pattern, duration, user);
+        const silence = await createSilence(pattern, duration, user);
         
         if (silence) {
           return res.send({
@@ -212,7 +213,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
       if (subcommand === 'list') {
         logger.info({ command: name, subcommand, interaction_id: id }, 'Handling silence list command');
         
-        const silences = getActiveSilences();
+        const silences = await getActiveSilences();
         const response = formatSilenceList(silences);
         
         return res.send({
@@ -231,7 +232,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
           silenceId
         }, 'Handling silence delete command');
         
-        const deleted = deleteSilence(silenceId);
+        const deleted = await deleteSilence(silenceId);
         
         if (deleted) {
           return res.send({
@@ -261,7 +262,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
       if (subcommand === 'list') {
         logger.info({ command: name, subcommand, interaction_id: id }, 'Handling route list command');
         
-        const decisions = router.getRecentDecisions();
+        const decisions = await router.getRecentDecisions();
         
         if (!decisions || decisions.length === 0) {
           return res.send({
@@ -297,7 +298,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
       if (subcommand === 'stats') {
         logger.info({ command: name, subcommand, interaction_id: id }, 'Handling route stats command');
         
-        const stats = router.getStats();
+        const stats = await router.getStats();
         
         const actionStats = Object.entries(stats.byAction)
           .map(([action, count]) => `\`${action}\`: ${count}`)
@@ -360,7 +361,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
       }, 'Handling acknowledge button');
       
       // Acknowledge the webhook
-      const webhook = acknowledgeWebhook(webhookId, user);
+      const webhook = await acknowledgeWebhook(webhookId, user);
       
       if (webhook) {
         // Update the Discord message
@@ -425,7 +426,7 @@ app.post('/webhooks/google-alerts', async (req, res) => {
 /**
  * Debug endpoint to view recent webhooks
  */
-app.get('/webhooks/recent', (req, res) => {
+app.get('/webhooks/recent', async (req, res) => {
   // Check for simple auth (can be same token or different)
   if (!validateBearerToken(req)) {
     logger.warn({ 
@@ -435,7 +436,7 @@ app.get('/webhooks/recent', (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   
-  const webhooks = getRecentWebhooks();
+  const webhooks = await getRecentWebhooks();
   
   logger.debug({ 
     count: webhooks.length 
@@ -462,9 +463,15 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  logger.info({ port: PORT }, 'Server started');
-  
-  // Set up periodic silence cleanup
-  setupSilenceCleanup();
+// Initialize database and start server
+initDatabase().then(() => {
+  app.listen(PORT, () => {
+    logger.info({ port: PORT }, 'Server started with database persistence');
+    
+    // Set up periodic silence cleanup
+    setupSilenceCleanup();
+  });
+}).catch(error => {
+  logger.error({ error: error.message }, 'Failed to start server');
+  process.exit(1);
 });

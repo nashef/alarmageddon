@@ -1,7 +1,6 @@
 import logger from './logger.js';
+import { saveSilence, getActiveSilences as getActiveSilencesFromDB, deleteSilence as deleteSilenceFromDB } from './database.js';
 
-// In-memory storage for silences (will move to database in Iteration 9)
-const activeSilences = [];
 let silenceIdCounter = 1;
 
 /**
@@ -30,7 +29,7 @@ export function parseDuration(durationStr) {
 /**
  * Create a new silence
  */
-export function createSilence(pattern, duration, user) {
+export async function createSilence(pattern, duration, user) {
   const durationMs = typeof duration === 'string' ? parseDuration(duration) : duration;
   
   if (!durationMs || durationMs <= 0) {
@@ -39,18 +38,16 @@ export function createSilence(pattern, duration, user) {
   }
   
   const silence = {
-    id: `silence_${silenceIdCounter++}`,
+    id: `silence_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     pattern: pattern || '.*',
-    regex: new RegExp(pattern || '.*', 'i'),
     createdAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + durationMs).toISOString(),
     createdBy: user?.username || 'Unknown',
-    createdById: user?.id,
-    duration: duration,
-    durationMs: durationMs
+    duration: duration
   };
   
-  activeSilences.push(silence);
+  // Save to database
+  await saveSilence(silence);
   
   logger.info({ 
     silenceId: silence.id,
@@ -66,9 +63,8 @@ export function createSilence(pattern, duration, user) {
 /**
  * Check if an alert matches any active silence
  */
-export function isAlertSilenced(alert) {
-  // Clean up expired silences first
-  cleanupExpiredSilences();
+export async function isAlertSilenced(alert) {
+  const activeSilences = await getActiveSilencesFromDB();
   
   const payload = alert.payload || alert;
   const title = payload.title || payload.subject || '';
@@ -98,57 +94,33 @@ export function isAlertSilenced(alert) {
 /**
  * Get all active silences
  */
-export function getActiveSilences() {
-  // Clean up expired silences first
-  cleanupExpiredSilences();
-  return [...activeSilences];
+export async function getActiveSilences() {
+  return await getActiveSilencesFromDB();
 }
 
 /**
  * Delete a silence by ID
  */
-export function deleteSilence(id) {
-  const index = activeSilences.findIndex(s => s.id === id);
+export async function deleteSilence(id) {
+  const success = await deleteSilenceFromDB(id);
   
-  if (index === -1) {
+  if (success) {
+    logger.info({ 
+      silenceId: id
+    }, 'Silence deleted');
+  } else {
     logger.warn({ silenceId: id }, 'Silence not found for deletion');
-    return false;
   }
   
-  const silence = activeSilences[index];
-  activeSilences.splice(index, 1);
-  
-  logger.info({ 
-    silenceId: id,
-    pattern: silence.pattern
-  }, 'Silence deleted');
-  
-  return true;
+  return success;
 }
 
 /**
- * Clean up expired silences
+ * Clean up expired silences (handled by database now)
  */
 export function cleanupExpiredSilences() {
-  const now = new Date();
-  const expired = [];
-  
-  for (let i = activeSilences.length - 1; i >= 0; i--) {
-    const silence = activeSilences[i];
-    if (new Date(silence.expiresAt) <= now) {
-      expired.push(silence);
-      activeSilences.splice(i, 1);
-    }
-  }
-  
-  if (expired.length > 0) {
-    logger.info({ 
-      count: expired.length,
-      silenceIds: expired.map(s => s.id)
-    }, 'Expired silences cleaned up');
-  }
-  
-  return expired;
+  // This is now handled by the database cleanup job
+  return [];
 }
 
 /**
@@ -196,10 +168,6 @@ export function formatSilenceList(silences) {
  * Set up periodic cleanup (call this once on startup)
  */
 export function setupSilenceCleanup() {
-  // Run cleanup every minute
-  setInterval(() => {
-    cleanupExpiredSilences();
-  }, 60 * 1000);
-  
-  logger.info('Silence cleanup scheduled');
+  // Cleanup is now handled by the database module
+  logger.info('Silence cleanup handled by database');
 }

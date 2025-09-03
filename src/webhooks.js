@@ -2,10 +2,7 @@ import logger from './logger.js';
 import { sendAlertToDiscord } from './alerts.js';
 import { isAlertSilenced } from './silences.js';
 import { getAlertRouter } from './router.js';
-
-// In-memory storage for recent webhooks (for debugging)
-const recentWebhooks = [];
-const MAX_WEBHOOKS = 10;
+import { saveAlert, updateAlert, getAlert, getRecentAlerts as getRecentAlertsFromDB, saveRoutingDecision } from './database.js';
 
 /**
  * Validates the token from the Authorization header or query parameter
@@ -46,13 +43,18 @@ export async function storeWebhook(webhook) {
   const timestampedWebhook = {
     ...webhook,
     receivedAt: new Date().toISOString(),
-    id: Date.now(),
+    id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     timestamp: Date.now(),
-    payload: webhook
+    payload: webhook,
+    acknowledged: false,
+    acknowledgedBy: null,
+    acknowledgedAt: null,
+    silenced: false,
+    silencedBy: null
   };
   
   // Check if alert is silenced
-  const silence = isAlertSilenced(timestampedWebhook);
+  const silence = await isAlertSilenced(timestampedWebhook);
   if (silence) {
     timestampedWebhook.silenced = true;
     timestampedWebhook.silencedBy = silence.id;
@@ -69,6 +71,9 @@ export async function storeWebhook(webhook) {
     
     timestampedWebhook.routingDecision = routingDecision;
     
+    // Save routing decision to database
+    await saveRoutingDecision(routingDecision);
+    
     // Handle routing decision
     if (routingDecision.action === 'PASS' && routingDecision.destination) {
       const message = await sendAlertToDiscord(timestampedWebhook, routingDecision.destination);
@@ -82,7 +87,7 @@ export async function storeWebhook(webhook) {
         routingDecision
       }, 'Alert dropped by router');
     } else if (routingDecision.action === 'REDIRECT') {
-      // Future: Handle redirect to different channel
+      // Handle redirect to different channel
       const message = await sendAlertToDiscord(timestampedWebhook, routingDecision.destination);
       if (message) {
         timestampedWebhook.messageId = message.id;
@@ -91,19 +96,14 @@ export async function storeWebhook(webhook) {
     }
   }
   
-  recentWebhooks.unshift(timestampedWebhook);
-  
-  // Keep only the most recent webhooks
-  if (recentWebhooks.length > MAX_WEBHOOKS) {
-    recentWebhooks.pop();
-  }
+  // Save to database
+  await saveAlert(timestampedWebhook);
   
   logger.debug({ 
     webhookId: timestampedWebhook.id,
-    totalStored: recentWebhooks.length,
     silenced: timestampedWebhook.silenced || false,
     routed: !timestampedWebhook.silenced
-  }, 'Webhook stored');
+  }, 'Webhook stored in database');
   
   return timestampedWebhook;
 }
@@ -111,30 +111,30 @@ export async function storeWebhook(webhook) {
 /**
  * Gets recent webhooks for debugging
  */
-export function getRecentWebhooks() {
-  return recentWebhooks;
+export async function getRecentWebhooks() {
+  return await getRecentAlertsFromDB(10);
 }
 
 /**
  * Clears all stored webhooks
  */
 export function clearWebhooks() {
-  recentWebhooks.length = 0;
-  logger.info('Cleared all stored webhooks');
+  // No longer needed with database storage
+  logger.info('Webhook clearing deprecated - using database retention');
 }
 
 /**
  * Gets a webhook by ID
  */
-export function getWebhookById(id) {
-  return recentWebhooks.find(w => w.id === id);
+export async function getWebhookById(id) {
+  return await getAlert(id);
 }
 
 /**
  * Acknowledges a webhook
  */
-export function acknowledgeWebhook(id, user) {
-  const webhook = getWebhookById(id);
+export async function acknowledgeWebhook(id, user) {
+  const webhook = await getAlert(id);
   
   if (!webhook) {
     logger.warn({ webhookId: id }, 'Webhook not found for acknowledgment');
@@ -146,26 +146,35 @@ export function acknowledgeWebhook(id, user) {
     return null;
   }
   
-  webhook.acknowledged = true;
-  webhook.acknowledgedBy = user?.username || 'Unknown';
-  webhook.acknowledgedById = user?.id;
-  webhook.acknowledgedAt = new Date().toISOString();
+  const updates = {
+    acknowledged: 1,
+    acknowledgedBy: user?.username || 'Unknown',
+    acknowledgedAt: new Date().toISOString()
+  };
   
-  logger.info({ 
-    webhookId: id,
-    acknowledgedBy: webhook.acknowledgedBy
-  }, 'Webhook acknowledged');
+  const success = await updateAlert(id, updates);
   
-  return webhook;
+  if (success) {
+    logger.info({ 
+      webhookId: id,
+      acknowledgedBy: updates.acknowledgedBy
+    }, 'Webhook acknowledged');
+    
+    return await getAlert(id);
+  }
+  
+  return null;
 }
 
 /**
  * Acknowledges multiple webhooks matching a pattern
  */
-export function acknowledgeWebhooksByPattern(pattern, user) {
+export async function acknowledgeWebhooksByPattern(pattern, user) {
   const regex = new RegExp(pattern, 'i'); // Case-insensitive matching
   const acknowledged = [];
   const alreadyAcked = [];
+  
+  const recentWebhooks = await getRecentAlertsFromDB(100);
   
   for (const webhook of recentWebhooks) {
     if (webhook.acknowledged) {
@@ -184,17 +193,24 @@ export function acknowledgeWebhooksByPattern(pattern, user) {
     const searchText = `${title} ${description} ${severity} ${service} ${hostname}`;
     
     if (regex.test(searchText)) {
-      webhook.acknowledged = true;
-      webhook.acknowledgedBy = user?.username || 'Unknown';
-      webhook.acknowledgedById = user?.id;
-      webhook.acknowledgedAt = new Date().toISOString();
-      acknowledged.push(webhook);
+      const updates = {
+        acknowledged: 1,
+        acknowledgedBy: user?.username || 'Unknown',
+        acknowledgedAt: new Date().toISOString()
+      };
       
-      logger.info({ 
-        webhookId: webhook.id,
-        acknowledgedBy: webhook.acknowledgedBy,
-        pattern
-      }, 'Webhook acknowledged by pattern');
+      const success = await updateAlert(webhook.id, updates);
+      
+      if (success) {
+        const updatedWebhook = await getAlert(webhook.id);
+        acknowledged.push(updatedWebhook);
+        
+        logger.info({ 
+          webhookId: webhook.id,
+          acknowledgedBy: updates.acknowledgedBy,
+          pattern
+        }, 'Webhook acknowledged by pattern');
+      }
     }
   }
   

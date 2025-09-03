@@ -1,8 +1,5 @@
 import logger from './logger.js';
-
-// In-memory storage for routing decisions (for debugging)
-const routingDecisions = [];
-const MAX_DECISIONS = 100;
+import { getRoutingDecisions } from './database.js';
 
 /**
  * AlertRouter - Routes alerts to appropriate Discord channels
@@ -77,11 +74,7 @@ export class AlertRouter {
       alertSource: payload.source || 'unknown'
     };
     
-    // Store in memory for debugging
-    routingDecisions.unshift(logEntry);
-    if (routingDecisions.length > MAX_DECISIONS) {
-      routingDecisions.pop();
-    }
+    // Routing decision is saved to database in webhooks.js after calling router.route()
     
     // Log to file
     logger.debug({
@@ -97,22 +90,23 @@ export class AlertRouter {
   /**
    * Get recent routing decisions for debugging
    */
-  getRecentDecisions() {
-    return [...routingDecisions];
+  async getRecentDecisions() {
+    return await getRoutingDecisions(100);
   }
 
   /**
    * Clear routing decision history
    */
   clearDecisions() {
-    routingDecisions.length = 0;
-    logger.info('Cleared routing decision history');
+    // No longer needed with database storage
+    logger.info('Routing decision clearing deprecated - using database');
   }
 
   /**
    * Get routing statistics
    */
-  getStats() {
+  async getStats() {
+    const routingDecisions = await getRoutingDecisions(100);
     const stats = {
       totalDecisions: routingDecisions.length,
       byAction: {},

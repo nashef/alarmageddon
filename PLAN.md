@@ -212,15 +212,15 @@ GET /webhooks/recent - View last 10 webhooks (debug)
 
 ---
 
-## Iteration 6.5: Database Persistence (Days 14-15)
+## Iteration 6.5: Database Persistence (Days 14-15) ✅ COMPLETE
 **Goal:** Migrate from in-memory storage to SQLite database for persistence
 
 ### Features
-- SQLite database setup and initialization
-- Persistent storage for alerts/webhooks
-- Persistent storage for silences
-- Persistent storage for routing decisions
-- Database cleanup and retention policies
+- ✅ SQLite database setup and initialization
+- ✅ Persistent storage for alerts/webhooks
+- ✅ Persistent storage for silences
+- ✅ Persistent storage for routing decisions
+- ✅ Database cleanup and retention policies
 
 ### Implementation
 ```sql
@@ -265,18 +265,18 @@ CREATE TABLE routing_decisions (
 ```
 
 ### Testing
-- Verify data persists across server restarts
-- Test database migrations and schema creation
-- Verify old data cleanup works
-- Test concurrent access patterns
-- Benchmark performance vs in-memory
+- ✅ Verify data persists across server restarts
+- ✅ Test database migrations and schema creation
+- ✅ Verify old data cleanup works
+- ✅ Test concurrent access patterns
+- ✅ Benchmark performance vs in-memory
 
 ### Success Criteria
-- All alerts persist across restarts
-- Silences remain active after restart
-- Acknowledgments are preserved
-- No data loss during normal operations
-- Automatic cleanup of old records (30-day retention)
+- ✅ All alerts persist across restarts
+- ✅ Silences remain active after restart
+- ✅ Acknowledgments are preserved
+- ✅ No data loss during normal operations
+- ✅ Automatic cleanup of old records (30-day retention)
 
 ---
 
@@ -567,7 +567,7 @@ main
 
 **Week 1:** Iterations 0-3 (Basic bot with webhook → Discord) ✅ COMPLETE
 **Week 2:** Iterations 4-5 (Acknowledgments and silencing) ✅ COMPLETE
-**Week 3:** Iterations 6-6.5 (AlertRouter and database persistence) - IN PROGRESS
+**Week 3:** Iterations 6-6.5 (AlertRouter and database persistence) ✅ COMPLETE
 **Week 4:** Iterations 7-8 (Routing rules and advanced routing)
 **Week 5:** Iterations 9-10 (Deduplication and hardening)
 **Week 6:** Iterations 11-12 (Advanced features and polish)
@@ -578,12 +578,16 @@ Total: **6 weeks** from start to production-ready bot with full routing and pers
 
 ## Next Steps
 
-1. **Completed:** Iterations 0-6 ✅
-   - Cleanup, ping bot, webhook receiver, alert posting, acknowledgments, silence system, basic routing
-2. **Next:** Iteration 6.5 (Database Persistence)
-   - Migrate from in-memory to SQLite database for persistence
-3. **Then:** Iteration 7 (Routing Rules Engine)
+1. **Completed:** Iterations 0-6.5 ✅
+   - Cleanup, ping bot, webhook receiver, alert posting, acknowledgments, silence system, basic routing, database persistence
+2. **Next:** Iteration 7 (Routing Rules Engine)
    - Database-backed routing rules with basic matchers
+   - Priority-based rule evaluation
+   - DROP and REDIRECT actions
+3. **Then:** Iteration 8 (Advanced Routing)
+   - JSONPath and regex matchers
+   - ESCALATE action
+   - Full routing command suite
 4. **Daily:** Review progress and adjust
 
 Each iteration builds confidence and adds functionality while maintaining a working system throughout development.
