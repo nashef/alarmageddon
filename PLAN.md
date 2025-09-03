@@ -179,54 +179,112 @@ GET /webhooks/recent - View last 10 webhooks (debug)
 
 ---
 
-## Iteration 6: Basic AlertRouter (Days 12-13)
+## Iteration 6: Basic AlertRouter (Days 12-13) ✅ COMPLETE
 **Goal:** Add routing layer between webhooks and Discord
 
 ### Features
-- Create AlertRouter component
-- Pass-through routing (all to DEFAULT_CHANNEL_ID)
-- Routing decision logging
-- Maintain backward compatibility
+- ✅ Create AlertRouter component
+- ✅ Pass-through routing (all to DEFAULT_CHANNEL_ID)
+- ✅ Routing decision logging
+- ✅ Maintain backward compatibility
+- ✅ **Bonus:** Simple rule-based routing (database alerts to #db channel)
 
 ### Implementation
-```javascript
-// New component
-class AlertRouter {
-  async route(alert) {
-    // For now, just pass through
-    const decision = {
-      action: 'PASS',
-      destination: process.env.DEFAULT_CHANNEL_ID,
-      timestamp: new Date()
-    };
-    
-    // Log routing decision
-    await logRoutingDecision(alert, decision);
-    
-    return decision;
-  }
-}
-```
+- ✅ Created `src/router.js` with AlertRouter class
+- ✅ Integrated into webhook flow (after silence check)
+- ✅ Added routing decision logging and statistics
+- ✅ Implemented `/route list` and `/route stats` commands
+- ✅ Added basic routing rule for database alerts
 
 ### Testing
-- Webhook → AlertRouter → Discord flow
-- Verify routing logs are created
-- Ensure existing functionality unchanged
-- Test with various webhook payloads
+- ✅ Webhook → AlertRouter → Discord flow
+- ✅ Verify routing logs are created
+- ✅ Ensure existing functionality unchanged
+- ✅ Test with various webhook payloads
+- ✅ Test database alerts route to #db channel
 
 ### Success Criteria
-- AlertRouter integrated into webhook flow
-- All alerts still reach Discord
-- Routing decisions are logged
-- No breaking changes
+- ✅ AlertRouter integrated into webhook flow
+- ✅ All alerts still reach Discord
+- ✅ Routing decisions are logged
+- ✅ No breaking changes
+- ✅ Database alerts route to dedicated channel
 
 ---
 
-## Iteration 6.5: Routing Rules Engine (Days 14-15)
+## Iteration 6.5: Database Persistence (Days 14-15)
+**Goal:** Migrate from in-memory storage to SQLite database for persistence
+
+### Features
+- SQLite database setup and initialization
+- Persistent storage for alerts/webhooks
+- Persistent storage for silences
+- Persistent storage for routing decisions
+- Database cleanup and retention policies
+
+### Implementation
+```sql
+-- Alerts/webhooks table
+CREATE TABLE alerts (
+  id TEXT PRIMARY KEY,
+  timestamp INTEGER NOT NULL,
+  received_at TEXT NOT NULL,
+  payload TEXT NOT NULL, -- JSON
+  silenced BOOLEAN DEFAULT 0,
+  silenced_by TEXT,
+  acknowledged BOOLEAN DEFAULT 0,
+  acknowledged_by TEXT,
+  acknowledged_at TEXT,
+  message_id TEXT,
+  channel_id TEXT,
+  routing_decision TEXT, -- JSON
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Silences table  
+CREATE TABLE silences (
+  id TEXT PRIMARY KEY,
+  pattern TEXT NOT NULL,
+  duration TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  active BOOLEAN DEFAULT 1
+);
+
+-- Routing decisions table (for audit)
+CREATE TABLE routing_decisions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  alert_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  destination TEXT,
+  reason TEXT,
+  timestamp TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Testing
+- Verify data persists across server restarts
+- Test database migrations and schema creation
+- Verify old data cleanup works
+- Test concurrent access patterns
+- Benchmark performance vs in-memory
+
+### Success Criteria
+- All alerts persist across restarts
+- Silences remain active after restart
+- Acknowledgments are preserved
+- No data loss during normal operations
+- Automatic cleanup of old records (30-day retention)
+
+---
+
+## Iteration 7: Routing Rules Engine (Days 16-17)
 **Goal:** Add database-backed routing rules with basic matchers
 
 ### Features
-- SQLite database for routing rules
+- Routing rules table in database
 - Priority-based rule evaluation
 - Basic matchers (exact, contains)
 - DROP and REDIRECT actions
@@ -274,7 +332,7 @@ async function evaluateRules(alert) {
 
 ---
 
-## Iteration 7: Advanced Routing (Days 16-17)
+## Iteration 8: Advanced Routing (Days 18-19)
 **Goal:** Add advanced matchers and full routing command suite
 
 ### Features
@@ -322,7 +380,7 @@ function matchesRule(alert, rule) {
 
 ---
 
-## Iteration 8: Alert Deduplication (Days 18-19)
+## Iteration 9: Alert Deduplication (Days 20-21)
 **Goal:** Prevent duplicate alerts from spamming channels
 
 ### Features
@@ -351,11 +409,11 @@ function matchesRule(alert, rule) {
 
 ---
 
-## Iteration 9: Production Hardening (Days 20-22)
+## Iteration 10: Production Hardening (Days 22-24)
 **Goal:** Prepare for production deployment
 
 ### Features
-- SQLite/PostgreSQL database
+- PostgreSQL support (optional upgrade from SQLite)
 - Comprehensive error handling
 - Rate limiting
 - Retry logic for Discord
@@ -363,7 +421,7 @@ function matchesRule(alert, rule) {
 - Docker containerization
 
 ### Implementation
-- Migrate from in-memory to database
+- Add PostgreSQL adapter option
 - Add error boundaries
 - Implement rate limiting
 - Add retry queues
@@ -385,7 +443,7 @@ function matchesRule(alert, rule) {
 
 ---
 
-## Iteration 10: Advanced Commands (Days 23-24)
+## Iteration 11: Advanced Commands (Days 25-26)
 **Goal:** Add power-user features
 
 ### Features
@@ -414,7 +472,7 @@ function matchesRule(alert, rule) {
 
 ---
 
-## Iteration 11: Monitoring & Polish (Days 25-26)
+## Iteration 12: Monitoring & Polish (Days 27-28)
 **Goal:** Add observability and final polish
 
 ### Features
@@ -509,21 +567,22 @@ main
 
 **Week 1:** Iterations 0-3 (Basic bot with webhook → Discord) ✅ COMPLETE
 **Week 2:** Iterations 4-5 (Acknowledgments and silencing) ✅ COMPLETE
-**Week 3:** Iterations 6-7 (AlertRouter and routing rules) - IN PROGRESS
-**Week 4:** Iteration 8-9 (Deduplication and hardening)
-**Week 5:** Iterations 10-11 (Advanced features and polish)
+**Week 3:** Iterations 6-6.5 (AlertRouter and database persistence) - IN PROGRESS
+**Week 4:** Iterations 7-8 (Routing rules and advanced routing)
+**Week 5:** Iterations 9-10 (Deduplication and hardening)
+**Week 6:** Iterations 11-12 (Advanced features and polish)
 
-Total: **5 weeks** from start to production-ready bot with full routing
+Total: **6 weeks** from start to production-ready bot with full routing and persistence
 
 ---
 
 ## Next Steps
 
-1. **Completed:** Iterations 0-5 ✅
-   - Cleanup, ping bot, webhook receiver, alert posting, acknowledgments, silence system
-2. **Next:** Iteration 6 (Basic AlertRouter)
-   - Add routing layer for future flexibility
-3. **Then:** Iteration 6.5 (Routing Rules Engine)
+1. **Completed:** Iterations 0-6 ✅
+   - Cleanup, ping bot, webhook receiver, alert posting, acknowledgments, silence system, basic routing
+2. **Next:** Iteration 6.5 (Database Persistence)
+   - Migrate from in-memory to SQLite database for persistence
+3. **Then:** Iteration 7 (Routing Rules Engine)
    - Database-backed routing rules with basic matchers
 4. **Daily:** Review progress and adjust
 

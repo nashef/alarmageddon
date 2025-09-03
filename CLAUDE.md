@@ -4,8 +4,8 @@
 Alarmageddon is a Production SRE Discord bot that receives webhooks from monitoring systems (like Google Cloud Alerts) and posts them as formatted messages to Discord channels. The bot provides alert management capabilities including acknowledgment, silencing, and routing.
 
 ## Current Status (Iterations Completed)
-- ✅ **Iteration 0-5 COMPLETE**: Basic setup, ping command, webhook receiver, alert posting, acknowledgment system, silence system
-- 🚧 **Next**: Iteration 6 (Basic AlertRouter)
+- ✅ **Iteration 0-6 COMPLETE**: Basic setup, ping command, webhook receiver, alert posting, acknowledgment system, silence system, basic routing
+- 🚧 **Next**: Iteration 6.5 (Routing Rules Engine)
 - See `PLAN.md` for full iteration roadmap
 
 ## Key Files
@@ -13,6 +13,7 @@ Alarmageddon is a Production SRE Discord bot that receives webhooks from monitor
 - `src/alerts.js` - Alert formatting and Discord message management
 - `src/webhooks.js` - Webhook storage and acknowledgment logic
 - `src/silences.js` - Silence management and pattern matching
+- `src/router.js` - AlertRouter for routing decisions and channel selection
 - `src/logger.js` - Structured logging with Pino
 - `commands.js` - Discord command registration script
 - `PLAN.md` - Iterative development plan
@@ -24,7 +25,8 @@ The `.env` file requires:
 APP_ID=<Discord App ID>
 DISCORD_TOKEN=<Bot Token>
 PUBLIC_KEY=<Discord Public Key>
-DEFAULT_CHANNEL_ID=<Channel for alerts>
+DEFAULT_CHANNEL_ID=<Default channel for alerts>
+DB_CHANNEL_ID=<Channel for database alerts (optional)>
 WEBHOOK_TOKEN=<Bearer auth token>
 WEBHOOK_URL_TOKEN=<URL param token for services that don't support headers>
 LOG_LEVEL=debug
@@ -68,6 +70,8 @@ curl http://localhost:31337/health
 - `/silence create <duration> [pattern]` - Create a silence (e.g., 5m, 2h, 1d)
 - `/silence list` - Show active silences
 - `/silence delete <id>` - Remove a silence
+- `/route list` - Show recent routing decisions
+- `/route stats` - Show routing statistics
 
 ## Key Features Implemented
 
@@ -82,6 +86,12 @@ curl http://localhost:31337/health
 - **Time-based**: Specify duration (30s, 5m, 2h, 1d)
 - **Auto-expiration**: Silences automatically expire and cleanup
 - **Management**: List and delete active silences
+
+### Alert Routing
+- **Channel routing**: Route alerts to different channels based on content
+- **Database alerts**: Automatically routed to #db channel
+- **Routing decisions**: All routing logged and auditable
+- **Statistics**: Track routing decisions and patterns
 
 ### Webhook Authentication
 - **Bearer token**: Via Authorization header (preferred)
@@ -116,11 +126,12 @@ curl http://localhost:31337/health
 - Check the webhook ID in logs matches what you're trying to acknowledge
 - Use regex patterns for bulk acknowledgment
 
-## Next Development Tasks (Iteration 6)
-1. Create AlertRouter component for routing decisions
-2. Implement pass-through routing (all to DEFAULT_CHANNEL_ID)
-3. Add routing decision logging
-4. Maintain backward compatibility with existing functionality
+## Next Development Tasks (Iteration 6.5)
+1. Add SQLite database for routing rules
+2. Implement priority-based rule evaluation
+3. Create `/route add` command for dynamic rule creation
+4. Add DROP and more sophisticated REDIRECT actions
+5. Implement basic matchers (exact, contains, regex)
 
 ## Important Conventions
 - Use structured logging with contextual fields

@@ -1,6 +1,7 @@
 import logger from './logger.js';
 import { sendAlertToDiscord } from './alerts.js';
 import { isAlertSilenced } from './silences.js';
+import { getAlertRouter } from './router.js';
 
 // In-memory storage for recent webhooks (for debugging)
 const recentWebhooks = [];
@@ -62,10 +63,27 @@ export async function storeWebhook(webhook) {
       pattern: silence.pattern
     }, 'Alert silenced, not sending to Discord');
   } else {
-    // Send to Discord if channel is configured and not silenced
-    const channelId = process.env.DEFAULT_CHANNEL_ID;
-    if (channelId) {
-      const message = await sendAlertToDiscord(timestampedWebhook, channelId);
+    // Route the alert through AlertRouter
+    const router = getAlertRouter();
+    const routingDecision = await router.route(timestampedWebhook);
+    
+    timestampedWebhook.routingDecision = routingDecision;
+    
+    // Handle routing decision
+    if (routingDecision.action === 'PASS' && routingDecision.destination) {
+      const message = await sendAlertToDiscord(timestampedWebhook, routingDecision.destination);
+      if (message) {
+        timestampedWebhook.messageId = message.id;
+        timestampedWebhook.channelId = message.channel_id;
+      }
+    } else if (routingDecision.action === 'DROP') {
+      logger.info({ 
+        webhookId: timestampedWebhook.id,
+        routingDecision
+      }, 'Alert dropped by router');
+    } else if (routingDecision.action === 'REDIRECT') {
+      // Future: Handle redirect to different channel
+      const message = await sendAlertToDiscord(timestampedWebhook, routingDecision.destination);
       if (message) {
         timestampedWebhook.messageId = message.id;
         timestampedWebhook.channelId = message.channel_id;
@@ -83,7 +101,8 @@ export async function storeWebhook(webhook) {
   logger.debug({ 
     webhookId: timestampedWebhook.id,
     totalStored: recentWebhooks.length,
-    silenced: timestampedWebhook.silenced || false
+    silenced: timestampedWebhook.silenced || false,
+    routed: !timestampedWebhook.silenced
   }, 'Webhook stored');
   
   return timestampedWebhook;

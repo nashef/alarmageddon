@@ -9,6 +9,7 @@ import logger from './src/logger.js';
 import { validateBearerToken, storeWebhook, getRecentWebhooks, getWebhookById, acknowledgeWebhook, acknowledgeWebhooksByPattern } from './src/webhooks.js';
 import { formatAlertList, updateAlertMessage } from './src/alerts.js';
 import { createSilence, getActiveSilences, deleteSilence, formatSilenceList, setupSilenceCleanup } from './src/silences.js';
+import { getAlertRouter } from './src/router.js';
 
 // Create an express app
 const app = express();
@@ -249,6 +250,91 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
             }
           });
         }
+      }
+    }
+
+    // "route" command with subcommands
+    if (name === 'route') {
+      const subcommand = options?.[0]?.name;
+      const router = getAlertRouter();
+      
+      if (subcommand === 'list') {
+        logger.info({ command: name, subcommand, interaction_id: id }, 'Handling route list command');
+        
+        const decisions = router.getRecentDecisions();
+        
+        if (!decisions || decisions.length === 0) {
+          return res.send({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: 'No routing decisions recorded yet.',
+              ephemeral: true
+            }
+          });
+        }
+        
+        const decisionList = decisions.slice(0, 10).map((d, i) => {
+          const time = new Date(d.timestamp).toLocaleTimeString();
+          return `**${i + 1}.** \`${d.action}\` → ${d.destination ? `<#${d.destination}>` : 'none'} | ${d.alertTitle.substring(0, 30)} | ${time}`;
+        }).join('\n');
+        
+        return res.send({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            embeds: [{
+              title: 'Recent Routing Decisions',
+              description: decisionList,
+              color: 0x00FFFF,
+              footer: {
+                text: `Showing ${Math.min(10, decisions.length)} of ${decisions.length} decisions`
+              }
+            }],
+            ephemeral: true
+          }
+        });
+      }
+      
+      if (subcommand === 'stats') {
+        logger.info({ command: name, subcommand, interaction_id: id }, 'Handling route stats command');
+        
+        const stats = router.getStats();
+        
+        const actionStats = Object.entries(stats.byAction)
+          .map(([action, count]) => `\`${action}\`: ${count}`)
+          .join('\n') || 'No actions recorded';
+        
+        const destStats = Object.entries(stats.byDestination)
+          .slice(0, 5)
+          .map(([dest, count]) => `<#${dest}>: ${count}`)
+          .join('\n') || 'No destinations recorded';
+        
+        return res.send({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            embeds: [{
+              title: 'Routing Statistics',
+              fields: [
+                {
+                  name: 'Total Decisions',
+                  value: `${stats.totalDecisions}`,
+                  inline: true
+                },
+                {
+                  name: 'By Action',
+                  value: actionStats,
+                  inline: true
+                },
+                {
+                  name: 'Top Destinations',
+                  value: destStats,
+                  inline: false
+                }
+              ],
+              color: 0x00FFFF
+            }],
+            ephemeral: true
+          }
+        });
       }
     }
 

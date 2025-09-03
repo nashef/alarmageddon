@@ -103,7 +103,28 @@ const SILENCE_COMMAND = {
   ],
 };
 
-const ALL_COMMANDS = [PING_COMMAND, WEBHOOK_COMMAND, ALERT_COMMAND, SILENCE_COMMAND];
+// Route management command
+const ROUTE_COMMAND = {
+  name: 'route',
+  description: 'View routing information',
+  type: 1,
+  integration_types: [0, 1],
+  contexts: [0, 1, 2],
+  options: [
+    {
+      name: 'list',
+      description: 'Show recent routing decisions',
+      type: 1, // SUB_COMMAND
+    },
+    {
+      name: 'stats',
+      description: 'Show routing statistics',
+      type: 1, // SUB_COMMAND
+    },
+  ],
+};
+
+const ALL_COMMANDS = [PING_COMMAND, WEBHOOK_COMMAND, ALERT_COMMAND, SILENCE_COMMAND, ROUTE_COMMAND];
 
 InstallGlobalCommands(process.env.APP_ID, ALL_COMMANDS)
   .then(commands => {
