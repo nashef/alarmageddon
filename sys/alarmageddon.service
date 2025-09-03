@@ -1,0 +1,39 @@
+[Unit]
+Description=Alarmageddon Discord Bot
+Documentation=https://github.com/yourusername/alarmageddon
+After=network.target
+
+[Service]
+Type=simple
+User=alarmageddon
+Group=alarmageddon
+WorkingDirectory=/opt/alarmageddon
+
+# Environment file containing secrets
+EnvironmentFile=/etc/alarmageddon/alarmageddon.env
+
+# Node.js application
+ExecStart=/usr/bin/node app.js
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/alarmageddon /opt/alarmageddon
+
+# Resource limits
+LimitNOFILE=4096
+MemoryLimit=512M
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=alarmageddon
+
+[Install]
+WantedBy=multi-user.target
